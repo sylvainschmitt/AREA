@@ -1,0 +1,40 @@
+---
+title: Software installation guide
+author: "Sylvain Schmitt sylvain.schmitt@agroparistech.fr"
+date: '`r Sys.Date()`'
+output:
+  bookdown::html_document2:
+    number_sections: false
+    toc: true
+    toc_float: yes
+  bookdown::pdf_document2:
+    number_sections: false
+    toc: false
+csl: /home/sylvain/Documents/Bibliography/csl/mee.csl
+bibliography: /home/sylvain/Documents/Bibliography/library.bib
+link-citations: yes
+---
+
+```{r config, message=FALSE, warning=FALSE, include=FALSE}
+rm(list = ls()); invisible(gc())
+library(knitr)
+library(ggplot2)
+opts_chunk$set(echo = T, eval = F,
+               message = F, warning = F, 
+               fig.height = 8, fig.width = 8,
+               cache = T, cache.lazy = F)
+```
+
+# KissDE R package
+
+See KissDE R package [web page](http://kissplice.prabi.fr/tools/kissDE/) and [GitHub](https://github.com/aursiber/kissDE)
+
+```{r}
+install.packages(c('aod', 'Biobase', 'DESeq2', 'DSS', 'glmnet'))
+source("https://bioconductor.org/biocLite.R")
+biocLite("Biobase")
+biocLite("DESeq2")
+biocLite("DSS")
+devtools::install_github("ausriber/KissDE")
+```
+

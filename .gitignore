@@ -1,0 +1,5 @@
+data/
+.R*
+.Rproj.user
+*.html
+scripts/kissDE_trinity500_37lib_analysis*
