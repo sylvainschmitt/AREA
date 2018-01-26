@@ -1,0 +1,155 @@
+---
+title: Condition-specific variants in Simphonia 500 RNA-seq
+author: "Sylvain Schmitt sylvain.schmitt@agroparistech.fr"
+date: '`r Sys.Date()`'
+output:
+  bookdown::html_document2:
+    number_sections: false
+    toc: true
+    toc_float: yes
+  bookdown::pdf_document2:
+    number_sections: false
+    toc: false
+csl: /home/sylvain/Documents/Bibliography/csl/mee.csl
+bibliography: /home/sylvain/Documents/Bibliography/library.bib
+link-citations: yes
+---
+
+```{r config, message=FALSE, warning=FALSE, include=FALSE}
+rm(list = ls()); invisible(gc())
+library(knitr)
+library(tidyverse)
+library(kissDE)
+opts_chunk$set(echo = T, eval = F,
+               message = F, warning = F, 
+               fig.height = 8, fig.width = 8,
+               cache = T, cache.lazy = F)
+path <- "~/Documents/BIOGECO/AREA/data/symphonia.trinity500.kissDE"
+```
+
+# Introduction
+
+# Ecotypes
+
+Define the ecotypes classes of each RNA-seq library. 37 individuals in total with pairEnd data containing 14 *Symphonia globulifera* and 23 *Symphonia sp1*.
+
+```{r conditions}
+conditions <- c(rep("glo",14),rep("sp1", 23))
+```
+
+# Analysis
+
+```{r function}
+analyse_DEV <- function(
+  type, # only variant code e.g. 0a
+  conditions, # conditions (ecotype)
+  path = "~/Documents/BIOGECO/AREA/data/symphonia.trinity500.kissDE", # working directory
+  pairedEnd = T, # kissplice2counts parameter
+  pvalue = 0.001, # kissplice2counts parameter
+  filterLowCountsVariants = 100 # kissplice2counts parameter
+){
+  file <- paste0("results_coherent_type_", type, ".fa")
+  counts <- kissplice2counts(file.path(path, file), 
+                                     pairedEnd = T)
+  DEV <- diffExpressedVariants(counts$countsEvents, 
+                               conditions, 
+                               filterLowCountsVariants = filterLowCountsVariants,
+                               pvalue = pvalue)
+  return(DEV$finalTable)
+}
+```
+
+
+# Single SNPs 
+
+```{r sSNPs}
+sSNPs <- analyse_DEV("0a", conditions)
+save(sSNPs, "./conditions-specific_cache/sSNPs.Rdata")
+load("./conditions-specific_cache/sSNPs.Rdata")
+ggplot(sSNPs, aes(Adjusted_pvalue,
+                 fill = Adjusted_pvalue < 0.05)) +
+  geom_histogram()
+sSNPs %>% 
+  filter(Adjusted_pvalue < 0.05) %>% 
+  select(ID) %>% 
+  DT::datatable()
+```
+
+# Multi SNPs
+
+```{r mSNPs}
+mSNPs <- analyse_DEV("0b", conditions)
+save(mSNPs, "./conditions-specific_cache/mSNPs.Rdata")
+load("./conditions-specific_cache/mSNPs.Rdata")
+ggplot(mSNPs, aes(Adjusted_pvalue,
+                 fill = Adjusted_pvalue < 0.05)) +
+  geom_histogram()
+mSNPs %>% 
+  filter(Adjusted_pvalue < 0.05) %>% 
+  select(ID) %>% 
+  DT::datatable()
+```
+
+# Alternative splicing events
+
+```{r altsplic}
+altsplic <- analyse_DEV("1", conditions)
+save(altsplic, "./conditions-specific_cache/altsplic.Rdata")
+load("./conditions-specific_cache/altsplic.Rdata")
+ggplot(altsplic, aes(Adjusted_pvalue,
+                 fill = Adjusted_pvalue < 0.05)) +
+  geom_histogram()
+altsplic %>% 
+  filter(Adjusted_pvalue < 0.05) %>% 
+  select(ID) %>% 
+  DT::datatable()
+```
+
+# Inexact tandem repeats
+
+```{r msat}
+msat <- analyse_DEV("2", conditions)
+save(msat, "./conditions-specific_cache/msat.Rdata")
+load("./conditions-specific_cache/msat.Rdata")
+ggplot(msat, aes(Adjusted_pvalue,
+                 fill = Adjusted_pvalue < 0.05)) +
+  geom_histogram()
+msat %>% 
+  filter(Adjusted_pvalue < 0.05) %>% 
+  select(ID) %>% 
+  DT::datatable()
+```
+
+# short Indels
+
+```{r sIndels}
+sIndels <- analyse_DEV("3", conditions)
+save(sIndels, "./conditions-specific_cache/sIndels.Rdata")
+load("./conditions-specific_cache/sIndels.Rdata")
+ggplot(sIndels, aes(Adjusted_pvalue,
+                 fill = Adjusted_pvalue < 0.05)) +
+  geom_histogram()
+sIndels %>% 
+  filter(Adjusted_pvalue < 0.05) %>% 
+  select(ID) %>% 
+  DT::datatable()
+```
+
+# All others
+
+All others, with a shorter path > 2k not being a SNP
+
+```{r others}
+others <- analyse_DEV("4", conditions)
+save(others, "./conditions-specific_cache/others.Rdata")
+load("./conditions-specific_cache/others.Rdata")
+ggplot(others, aes(Adjusted_pvalue,
+                 fill = Adjusted_pvalue < 0.05)) +
+  geom_histogram()
+others %>% 
+  filter(Adjusted_pvalue < 0.05) %>% 
+  select(ID) %>% 
+  DT::datatable()
+```
+
+# References

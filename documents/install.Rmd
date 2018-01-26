@@ -35,6 +35,6 @@ source("https://bioconductor.org/biocLite.R")
 biocLite("Biobase")
 biocLite("DESeq2")
 biocLite("DSS")
-devtools::install_github("ausriber/KissDE")
+devtools::install_github("aursiber/KissDE")
 ```
 

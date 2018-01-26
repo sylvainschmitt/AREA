@@ -3,3 +3,6 @@ data/
 .Rproj.user
 *.html
 scripts/kissDE_trinity500_37lib_analysis*
+*_cache
+*_save
+*_file
