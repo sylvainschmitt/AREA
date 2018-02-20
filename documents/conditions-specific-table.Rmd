@@ -1,0 +1,96 @@
+---
+title: Condition-specific variants in Simphonia 500 RNA-seq
+author: "Sylvain Schmitt sylvain.schmitt@agroparistech.fr"
+date: '`r Sys.Date()`'
+output:
+  bookdown::word_document2: default
+  bookdown::html_document2:
+    number_sections: false
+  bookdown::pdf_document2:
+    number_sections: false
+    toc: false
+# csl: /home/sylvain/Documents/Bibliography/csl/mee.csl
+# bibliography: /home/sylvain/Documents/Bibliography/library.bib
+link-citations: yes
+---
+
+```{r config, message=FALSE, warning=FALSE, include=FALSE}
+rm(list = ls()); invisible(gc())
+library(knitr)
+library(tidyverse)
+opts_chunk$set(echo = T, eval = T,
+               message = F, warning = F, 
+               fig.height = 4, fig.width = 8,
+               cache = T, cache.lazy = F)
+```
+
+```{r summary}
+load("./conditions-specific_save/sSNPs.Rdata")
+load("./conditions-specific_save/mSNPs.Rdata")
+load("./conditions-specific_save/altsplic.Rdata")
+load("./conditions-specific_save/msat.Rdata")
+load("./conditions-specific_save/sIndels.Rdata")
+load("./conditions-specific_save/others.Rdata")
+variants <- c("Single SNPs" = 1029714, 
+              "Multiple SNPs" = 286021, 
+              "Alternative splicing events" = 97443, 
+              "Inexact tandem repeats" = 296,
+              "short Indels" = 137338,
+              "Others" = 21049)
+csv <- unlist(lapply(list("Single SNPs" = sSNPs, 
+            "Multiple SNPs" = mSNPs, 
+            "Alternative splicing events" = altsplic, 
+            "Inexact tandem repeats" = msat,
+            "short Indels" = sIndels,
+            "Others" = others), 
+       function(x) dim(x)[1]))
+data <- data.frame(variants, csv) %>% 
+  mutate(variants.type = row.names(.)) %>% 
+  mutate(percent = round(csv/variants*100, 2)) %>% 
+  select(variants.type, variants, csv, percent)
+```
+
+```{r table}
+data %>% 
+  rename("Variant type" = variants.type) %>% 
+  rename("Total" = variants) %>% 
+  rename("Number of Condition-specifics" = csv) %>%
+  rename("Percentage of Condition-specifics" = percent) %>% 
+  kable(caption = "Conditions-specifics variants (with a level $\\alpha < 0.001$)  ")
+```
+
+```{r graph, fig.cap = "Percentage represents the number of conditions-specific variants with a level $\\alpha = 0.001$ over total number of variants."}
+data %>% 
+  rename("Variant type" = variants.type) %>% 
+  ggplot(aes(x = `Variant type`, 
+             y = csv,
+             fill = `Variant type`)) +
+  geom_bar(stat = 'identity') +
+  geom_text(aes(y =  csv + 10000,  
+                label = paste0(percent, '%'),
+                col = `Variant type`), 
+            position = position_dodge(width = .9), 
+            size = 3) +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  ylab('Number')
+```
+
+```{r graph2, fig.cap = "Percentage represents the number of conditions-specific variants with a level $\\alpha = 0.001$ over total number of variants."}
+data %>% 
+  rename("Variant type" = variants.type) %>% 
+  ggplot(aes(x = `Variant type`, 
+             y = percent,
+             fill = `Variant type`)) +
+  geom_bar(stat = 'identity') +
+  geom_text(aes(y =  percent + 0.5,  
+                label = paste0("n = ", csv),
+                col = `Variant type`), 
+            position = position_dodge(width = .9), 
+            size = 3) +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  ylab('Percentage of total number of variants')
+```

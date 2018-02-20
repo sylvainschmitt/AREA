@@ -1,5 +1,5 @@
-# ToDo
-* Test SNPs ecotype differentiation iwth KDE
+# AREA 0.1.9002
+* Result for DEGrowSymphony project submission
 
 # AREA 0.1.9002
 * First tabebuia run of DEV analysis (see [DEV document](~/Documents/conditions-specific.Rmd))
