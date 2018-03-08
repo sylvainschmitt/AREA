@@ -5,4 +5,10 @@ data/
 scripts/kissDE_trinity500_37lib_analysis*
 *_cache
 *_save
-*_file
+*_files
+*.docx
+*.psl
+*sh
+*.fa
+*.bed
+*.tsv

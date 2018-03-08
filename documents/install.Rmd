@@ -30,7 +30,7 @@ opts_chunk$set(echo = T, eval = F,
 See KissDE R package [web page](http://kissplice.prabi.fr/tools/kissDE/) and [GitHub](https://github.com/aursiber/kissDE)
 
 ```{r}
-install.packages(c('aod', 'Biobase', 'DESeq2', 'DSS', 'glmnet'))
+install.packages(c('aod', 'glmnet'))
 source("https://bioconductor.org/biocLite.R")
 biocLite("Biobase")
 biocLite("DESeq2")

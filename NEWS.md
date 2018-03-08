@@ -1,5 +1,6 @@
-# ToDo
-* Test SNPs ecotype differentiation iwth KDE
+# AREA 0.1.9003
+* k2rt debug
+* conditions-specific-variants tables and graphs
 
 # AREA 0.1.9002
 * First tabebuia run of DEV analysis (see [DEV document](~/Documents/conditions-specific.Rmd))

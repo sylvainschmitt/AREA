@@ -1,0 +1,471 @@
+---
+title: Debug of k2rt 02/03 try
+author: "Sylvain Schmitt"
+output:
+  bookdown::html_document2:
+    theme: readable
+    toc: true
+    toc_float: yes
+    number_sections: yes
+  bookdown::pdf_document2:
+    toc: false
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+rm(list = ls()) ; invisible(gc()) ; set.seed(42)
+library(knitr)
+opts_chunk$set(
+  echo = T, message = T, warning = T, fig.height = 6, fig.width = 8,
+  cache = T, cache.lazy = F)
+```
+
+# Files
+
+```{bash}
+tree
+```
+
+# First example
+
+## Untreated (tsv)
+
+```{bash}
+head -n 3 untreated.tsv
+```
+
+* Genes: 
+    * TRINITY_DN765241_c0_g4_i2
+    * TRINITY_DN765241_c0_g4_i1
+* SNP: bcc_9953|Cycle_14|Type_0a
+* Reason: Bubble as no Kissplice connection
+
+## SNPs (fa)
+
+```{bash}
+grep bcc_9953\|Cycle_14\|Type_0a results_coherent_type_0a.fa
+```
+
+SNP bcc_9953 is correctly defined one time in the fa file:
+
+* bcc_9953|Cycle_14|Type_0a|upper_path_length_83
+* bcc_9953|Cycle_14|Type_0a|lower_path_length_83
+
+## Gene ORF (bed)
+
+```{r}
+# grep TRINITY_DN765241_c0_g4_i2 symphonia.trinity500.fasta.transdecoder.bed
+# grep TRINITY_DN765241_c0_g4_i1 symphonia.trinity500.fasta.transdecoder.bed
+```
+
+* Gene TRINITY_DN765241_c0_g4_i2 is absent in the bed file. No ORF ? Not functional ?
+* Gene TRINITY_DN765241_c0_g4_i1 is absent in the bed file. No ORF ? Not functional ?
+
+## SNPs in Genes (psl)
+
+```{bash}
+grep bcc_9953\|Cycle_14\|Type_0a all_symphonia_juvs_type0a.psl
+```
+
+SNP bcc_9953|Cycle_14|Type_0a is defined in two genes:
+
+* TRINITY_DN765241_c0_g4_i2
+* TRINITY_DN765241_c0_g4_i1
+
+## Conclusion
+
+It seems the issue come from the fact that the SNP is defined in two genes (same as with example data).
+
+# Second example
+
+## Untreated (tsv)
+
+```{bash}
+grep bcc_97365\|Cycle_0\|Type_0a untreated.tsv
+```
+
+* Genes: 
+    * TRINITY_DN781930_c2_g3_i3
+    * TRINITY_DN781930_c2_g3_i2
+* SNP: bcc_97365|Cycle_0|Type_0a
+* Reason: Bubble as no Kissplice connection
+
+## SNPs (fa)
+
+```{bash}
+grep bcc_97365\|Cycle_0\|Type_0a results_coherent_type_0a.fa
+```
+
+SNP bcc_9953 is correctly defined one time in the fa file:
+
+* bcc_97365|Cycle_14|Type_0a|upper_path_length_83
+* bcc_97365|Cycle_14|Type_0a|lower_path_length_83
+
+## Gene ORF (bed)
+
+```{bash}
+grep TRINITY_DN781930_c2_g3_i3 symphonia.trinity500.fasta.transdecoder.bed
+grep TRINITY_DN781930_c2_g3_i2 symphonia.trinity500.fasta.transdecoder.bed
+```
+
+* Gene TRINITY_DN781930_c2_g3_i3 has an ORF
+* Gene TRINITY_DN781930_c2_g3_i2 has an ORF
+
+## SNPs in Genes (psl)
+
+```{bash}
+grep bcc_97365\|Cycle_0\|Type_0a all_symphonia_juvs_type0a.psl
+```
+
+SNP bcc_9953|Cycle_14|Type_0a is defined in two genes:
+
+* TRINITY_DN781930_c2_g3_i3
+* TRINITY_DN781930_c2_g3_i2
+
+## Conclusion
+
+It seems the issue come from the fact that the SNP is defined in two genes (same as with example data). And this time the two genes have ORFs so the issue is not coming from the bed file.
+
+# Debug test
+
+If we use the second example with SNP bcc_97365|Cycle_0|Type_0a and genes TRINITY_DN781930_c2_g3_i3 & TRINITY_DN781930_c2_g3_i2, but with only gene TRINITY_DN781930_c2_g3_i3 in the psl file.
+
+```{bash}
+mkdir debug_test
+SNP=bcc_97365\|Cycle_0\|Type_0a
+Gene=TRINITY_DN781930_c2_g3_i3
+file_fa=results_coherent_type_0a.fa
+file_bed=symphonia.trinity500.fasta.transdecoder.bed
+file_psl=all_symphonia_juvs_type0a.psl
+rm ./debug_test/test.fa ./debug_test/test.bed ./debug_test/test.psl
+cp $file_fa ./debug_test/test.fa
+grep  $Gene $file_bed >> ./debug_test/test.bed
+grep  $SNP $file_psl | grep $Gene >> ./debug_test/test.psl
+```
+
+Now we run again k2rt with an output for untreated:
+
+```{bash}
+cd debug_test/
+rm untreated.tsv mainoutput.tsv
+kissplice2reftranscriptome -b test.bed -t test.psl -k test.fa -u untreated.tsv -o mainoutput.tsv
+```
+
+Checking for outputs and untreated Bubbles:
+
+```{bash}
+cat debug_test/mainOutput1520450514.32.tsv
+cat debug_test/untreated.tsv
+```
+
+And once again `k2rt` is not able to connect the kissplice fa file with others.
+
+# *Break in code*
+
+We can use `python` code to check line lecture and correspondance between bed and psl files.
+
+## Data gathering
+
+### Code
+
+```{python, eval=F}
+ktp.formatKisspliceTable()
+ktp.createKisspliceDictionary()
+blattp.formatBlatTable()
+blattp.createBlatDictionary()
+for i in range(0, len(blattp.blatTable)):
+  skipRow = False
+  qNameTable = blatbd.getQueryNameTable(blattp.blatTable[blatRowNumber])
+  snpId = blatbd.getSnpId(blattp.blatTable[blatRowNumber])
+  componentId = blattp.blatTable[blatRowNumber][13]
+  blatbd.getLowerPath(blattp.blatTable, blatRowNumber, blattp.blatDictionary, snpId)
+  
+  if blatbd.isRowWithoutKisspliceConnection(ktp.kisspliceDictionary, blattp.blatTable[blatRowNumber]) is True:
+
+    if ap.getUntreatableBubblesOutputFilePath() is not False:
+      untreatedReason = "Bubble as no Kissplice connection"
+      ofw.writeInUntreatableBubblesTsv(untreatableBubblesOutputFilePath, componentId, snpId, untreatedReason, isSpecificCondition)
+    skipRow = True
+```
+
+
+## blat table & dictionnary (psl)
+
+### Code
+
+```{python, eval=F}
+class BlatTableParser:
+
+  def formatBlatTable(self):
+    self.blatTable = [element.strip('\n').strip(',').split('\t') for element in self.blatTable]
+
+  def createBlatDictionary(self):
+    for element in self.blatTable:
+      snpDictionaryValue = []
+      for i in range(0, len(element)):
+        if i == 13: # Gene
+          compIdTable = element[i].split("_")
+          trunkedCompId = "_".join(compIdTable[0:-1])
+          snpDictionaryValue.append(trunkedCompId)
+          snpDictionaryValue.append(compIdTable[-1])
+        else:
+          if i == 9: # SNP
+            snpIdTable = element[i].split("|")
+            snpKey = snpIdTable[0] + "|" + snpIdTable[1] + "|" + snpIdTable[2]
+          snpDictionaryValue.append(element[i])
+          
+      if snpKey in self.blatDictionary:
+        self.blatDictionary[snpKey].append(snpDictionaryValue)
+      else:
+        self.blatDictionary[snpKey] = [snpDictionaryValue]
+```
+
+### Home made
+
+```{python}
+element = "82	1	0	0	0	0	0	0	-	bcc_97365|Cycle_0|Type_0a|lower_path_Length_83|C1_0|C2_0|C3_0|C4_0|C5_0|C6_0|C7_0|C8_0|C9_7|C10_1|C11_0|C12_0|C13_0|C14_0|C15_0|C16_0|C17_0|C18_0|C19_0|C20_0|C21_0|C22_0|C23_0|C24_0|C25_0|C26_0|C27_0|C28_0|C29_0|C30_0|C31_0|C32_0|C33_0|C34_0|C35_0|C36_0|C37_0|C38_0|C39_0|C40_0|C41_0|C42_0|C43_0|C44_0|C45_0|C46_0|C47_0|C48_0|C49_0|C50_0|C51_0|C52_0|C53_0|C54_0|C55_0|C56_0|C57_0|C58_0|C59_0|C60_0|C61_0|C62_0|C63_0|C64_0|C65_0|C66_0|C67_0|C68_0|C69_0|C70_0|C71_0|C72_0|C73_0|C74_0|Q1_0|Q2_0|Q3_0|Q4_0|Q5_0|Q6_0	83	0	83	TRINITY_DN781930_c2_g3_i3	791	389	472	1	83,	0,	389,"
+element = element.strip('\n').strip(',').split('\t')
+blatTable = element
+snpDictionaryValue = []
+compIdTable = element[13].split("_")
+trunkedCompId = "_".join(compIdTable[0:-1])
+snpDictionaryValue.append(trunkedCompId)
+snpDictionaryValue.append(compIdTable[-1])
+snpIdTable = element[9].split("|")
+snpKey = snpIdTable[0] + "|" + snpIdTable[1] + "|" + snpIdTable[2]
+snpDictionaryValue.append(element[9])
+blatDictionnaryKey = snpKey
+blatDictionnaryValue = snpDictionaryValue
+print blatTable
+print blatDictionnaryKey
+print blatDictionnaryValue
+```
+
+## kissplice table & dictionnary (fa)
+
+### Code
+
+```{python, eval=F}
+import re
+
+class KisspliceTableParser():
+
+  def formatKisspliceTable(self):
+    self.kisspliceTable = [element.strip('>').split('\n') for element in self.kisspliceTable]
+
+    temporaryTable = []
+    rowNumber = -1
+    for element in self.kisspliceTable:
+      if re.match("^bcc.*$", element[0]):
+        rowNumber += 1
+        temporaryTable.append(element)
+      else:
+        temporaryTable[rowNumber][1] = temporaryTable[rowNumber][1] + element[0]
+
+    self.kisspliceTable = temporaryTable
+
+  def createKisspliceDictionary(self):
+    for element in self.kisspliceTable:
+      self.kisspliceDictionary[element[0]] = element[1]
+```
+
+### Home made
+
+```{python}
+element = ">bcc_97365|Cycle_0|Type_0a|lower_path_Length_83|C1_0|C2_0|C3_0|C4_0|C5_0|C6_0|C7_0|C8_0|C9_7|C10_1|C11_0|C12_0|C13_0|C14_0|C15_0|C16_0|C17_0|C18_0|C19_0|C20_0|C21_0|C22_0|C23_0|C24_0|C25_0|C26_0|C27_0|C28_0|C29_0|C30_0|C31_0|C32_0|C33_0|C34_0|C35_0|C36_0|C37_0|C38_0|C39_0|C40_0|C41_0|C42_0|C43_0|C44_0|C45_0|C46_0|C47_0|C48_0|C49_0|C50_0|C51_0|C52_0|C53_0|C54_0|C55_0|C56_0|C57_0|C58_0|C59_0|C60_0|C61_0|C62_0|C63_0|C64_0|C65_0|C66_0|C67_0|C68_0|C69_0|C70_0|C71_0|C72_0|C73_0|C74_0|Q1_0|Q2_0|Q3_0|Q4_0|Q5_0|Q6_0|Q7_0|Q8_0|Q9_71|Q10_71|Q11_0|Q12_0|Q13_0|Q14_0|Q15_0|Q16_0|Q17_0|Q18_0|Q19_0|Q20_0|Q21_0|Q22_0|Q23_0|Q24_0|Q25_0|Q26_0|Q27_0|Q28_0|Q29_0|Q30_0|Q31_0|Q32_0|Q33_0|Q34_0|Q35_0|Q36_0|Q37_0|Q38_0|Q39_0|Q40_0|Q41_0|Q42_0|Q43_0|Q44_0|Q45_0|Q46_0|Q47_0|Q48_0|Q49_0|Q50_0|Q51_0|Q52_0|Q53_0|Q54_0|Q55_0|Q56_0|Q57_0|Q58_0|Q59_0|Q60_0|Q61_0|Q62_0|Q63_0|Q64_0|Q65_0|Q66_0|Q67_0|Q68_0|Q69_0|Q70_0|Q71_0|Q72_0|Q73_0|Q74_0|rank_1.00000\nAATCTTGCGGAGTATCTTGTCGGGTTGTCCTGTTCTTGAATTGTTGAAGTTGTACAAATGCATTGGGATTAATGAGGTTGATA"
+element = element.strip('>').split('\n')
+kisspliceTable = [[element[0],element[1]]]
+kisspliceKey = element[0]
+kisspliceValue = element[1]
+print kisspliceTable
+print kisspliceKey
+print kisspliceValue
+```
+
+<!-- ## trintity dictionnary (bed) -->
+
+<!-- ### Code -->
+
+<!-- ```{python, eval=F} -->
+<!-- class TrinityBedTableParser(): -->
+<!--   def __init__(self): -->
+<!--     self.trinityBedTable = [] -->
+<!--     self.trinityBedDictionary = {} -->
+
+<!--   def formatTrinityBedTable(self): -->
+<!--     self.trinityBedTable = [element.strip('\n').split('\t') -->
+<!--                             for element in self.trinityBedTable] -->
+
+<!--   def createTrinityBedDictionary(self): -->
+<!--     for element in self.trinityBedTable: -->
+<!--       dictionaryValue = [] -->
+<!--       for i in range(1, len(element)): -->
+<!--         dictionaryValue.append(element[i]) -->
+<!--       if self.trinityBedDictionary.get(element[0]) is not None: -->
+<!--         rowAlignment = int(self.trinityBedDictionary.get(element[0])[6]) - \ -->
+<!--                        int(self.trinityBedDictionary.get(element[0])[5]) -->
+<!--         if rowAlignment < (int(dictionaryValue[6]) - int(dictionaryValue[5])): -->
+<!--           self.trinityBedDictionary[element[0]] = dictionaryValue -->
+<!--       else: -->
+<!--         self.trinityBedDictionary[element[0]] = dictionaryValue -->
+<!-- ``` -->
+
+<!-- ### Home made -->
+
+<!-- ```{python} -->
+<!-- element = "TRINITY_DN781930_c2_g3_i3	0	791	ID=TRINITY_DN781930_c2_g3::TRINITY_DN781930_c2_g3_i3::g.35298::m.35298;TRINITY_DN781930_c2_g3::TRINITY_DN781930_c2_g3_i3::g.35298;ORF_type:5prime_partial_len:260_(-)	0	-	9	789	0	1	791	0" -->
+<!-- element = element.strip('\n').split('\t') -->
+<!-- # print int(element[6+1])-int(element[5+1]) -->
+<!-- print element[0] -->
+<!-- print element[1:len(element)] -->
+<!-- ``` -->
+
+## blat and kissplice match
+
+### Code
+
+```{python, eval=F}
+def isRowWithoutKisspliceConnection(self, kisspliceDictionary, blatRow):
+  if blatRow[9] in kisspliceDictionary:
+    return False
+  else:
+    return True
+```
+
+### Home made
+
+```{python}
+# Blat
+element = "82	1	0	0	0	0	0	0	-	bcc_97365|Cycle_0|Type_0a|lower_path_Length_83|C1_0|C2_0|C3_0|C4_0|C5_0|C6_0|C7_0|C8_0|C9_7|C10_1|C11_0|C12_0|C13_0|C14_0|C15_0|C16_0|C17_0|C18_0|C19_0|C20_0|C21_0|C22_0|C23_0|C24_0|C25_0|C26_0|C27_0|C28_0|C29_0|C30_0|C31_0|C32_0|C33_0|C34_0|C35_0|C36_0|C37_0|C38_0|C39_0|C40_0|C41_0|C42_0|C43_0|C44_0|C45_0|C46_0|C47_0|C48_0|C49_0|C50_0|C51_0|C52_0|C53_0|C54_0|C55_0|C56_0|C57_0|C58_0|C59_0|C60_0|C61_0|C62_0|C63_0|C64_0|C65_0|C66_0|C67_0|C68_0|C69_0|C70_0|C71_0|C72_0|C73_0|C74_0|Q1_0|Q2_0|Q3_0|Q4_0|Q5_0|Q6_0	83	0	83	TRINITY_DN781930_c2_g3_i3	791	389	472	1	83,	0,	389,"
+element = element.strip('\n').strip(',').split('\t')
+blatTable = element
+snpDictionaryValue = []
+compIdTable = element[13].split("_")
+trunkedCompId = "_".join(compIdTable[0:-1])
+snpDictionaryValue.append(trunkedCompId)
+snpDictionaryValue.append(compIdTable[-1])
+snpIdTable = element[9].split("|")
+snpKey = snpIdTable[0] + "|" + snpIdTable[1] + "|" + snpIdTable[2]
+snpDictionaryValue.append(element[9])
+blatDictionnaryKey = snpKey
+blatDictionnaryValue = snpDictionaryValue
+# kisspliceDictionnary
+element = ">bcc_97365|Cycle_0|Type_0a|lower_path_Length_83|C1_0|C2_0|C3_0|C4_0|C5_0|C6_0|C7_0|C8_0|C9_7|C10_1|C11_0|C12_0|C13_0|C14_0|C15_0|C16_0|C17_0|C18_0|C19_0|C20_0|C21_0|C22_0|C23_0|C24_0|C25_0|C26_0|C27_0|C28_0|C29_0|C30_0|C31_0|C32_0|C33_0|C34_0|C35_0|C36_0|C37_0|C38_0|C39_0|C40_0|C41_0|C42_0|C43_0|C44_0|C45_0|C46_0|C47_0|C48_0|C49_0|C50_0|C51_0|C52_0|C53_0|C54_0|C55_0|C56_0|C57_0|C58_0|C59_0|C60_0|C61_0|C62_0|C63_0|C64_0|C65_0|C66_0|C67_0|C68_0|C69_0|C70_0|C71_0|C72_0|C73_0|C74_0|Q1_0|Q2_0|Q3_0|Q4_0|Q5_0|Q6_0|Q7_0|Q8_0|Q9_71|Q10_71|Q11_0|Q12_0|Q13_0|Q14_0|Q15_0|Q16_0|Q17_0|Q18_0|Q19_0|Q20_0|Q21_0|Q22_0|Q23_0|Q24_0|Q25_0|Q26_0|Q27_0|Q28_0|Q29_0|Q30_0|Q31_0|Q32_0|Q33_0|Q34_0|Q35_0|Q36_0|Q37_0|Q38_0|Q39_0|Q40_0|Q41_0|Q42_0|Q43_0|Q44_0|Q45_0|Q46_0|Q47_0|Q48_0|Q49_0|Q50_0|Q51_0|Q52_0|Q53_0|Q54_0|Q55_0|Q56_0|Q57_0|Q58_0|Q59_0|Q60_0|Q61_0|Q62_0|Q63_0|Q64_0|Q65_0|Q66_0|Q67_0|Q68_0|Q69_0|Q70_0|Q71_0|Q72_0|Q73_0|Q74_0|rank_1.00000\nAATCTTGCGGAGTATCTTGTCGGGTTGTCCTGTTCTTGAATTGTTGAAGTTGTACAAATGCATTGGGATTAATGAGGTTGATA"
+element = element.strip('>').split('\n')
+kisspliceTable = [[element[0],element[1]]]
+kisspliceKey = element[0]
+kisspliceValue = element[1]
+# match
+print blatTable[9]
+print kisspliceKey
+```
+
+## Conclusion
+
+There is effectivelly a mismatch between SNP keys `blat` psl file and `kissplice` fa file. It seems that the SNP keys in the `blat` psl file has been shorten (see diff file with `Geany` in `debug_test` folder).
+
+# Debug test 2
+
+If we replace the uncomplete SNP key from the `blat` file with the one from `kissplice`
+
+```{bash}
+mkdir debug_test2
+SNP=bcc_97365\|Cycle_0\|Type_0a
+Gene=TRINITY_DN781930_c2_g3_i3
+file_fa=results_coherent_type_0a.fa
+file_bed=symphonia.trinity500.fasta.transdecoder.bed
+rm ./debug_test2/test2.fa ./debug_test2/test2.bed ./debug_test2/test2.psl
+cp $file_fa ./debug_test2/test2.fa
+grep  $Gene $file_bed >> ./debug_test2/test2.bed
+cp ./new.psl ./debug_test2/test2.psl
+```
+
+Now we run again k2rt with an output for untreated:
+
+```{bash}
+cd debug_test2/
+rm untreated2.tsv mainoutput2.tsv
+kissplice2reftranscriptome -b test2.bed -t test2.psl -k test2.fa -u untreated2.tsv -o mainoutput2.tsv
+```
+
+Checking for outputs and untreated Bubbles:
+
+```{bash}
+cat debug_test2/mainoutput2.tsv
+cat debug_test2/untreated2.tsv
+```
+
+**And it works !** Consequently we now need to find why `blat` is writting bad SNP key.
+
+# Blat bug investigation
+
+## Blat script:
+
+```{bash, eval=F}
+reftranscriptway=$way/$rnalibname/$rnalibname.fasta
+kissplice_res=/media/toshiba/AREA/symphonia.trinity500.kissplice/symphonia.results.fullsample.new/
+blat_res=/media/toshiba/AREA/symphonia.trinity500.kissplice/blat.symphonia.trinity500.new
+/usr/local/bin/blat $reftranscriptway $kissplice_res/*_type_0b.fa $blat_res/all_symphonia_juvs_type0b.psl
+```
+
+## Kissplice result old and new:
+
+```{bash, eval=F}
+tabebuia-ssh
+kissplice_fold=/media/toshiba/AREA/symphonia.trinity500.kissplice
+kissplice_res_old=$kissplice_fold/symphonia.results.fullsample
+kissplice_res_new=$kissplice_fold/symphonia.results.fullsample.new
+head $kissplice_res_old/*type_0a.fa
+head $kissplice_res_new/*type_0a.fa
+```
+
+```{r, eval=F}
+# head $kissplice_res_old/*type_0a.fa
+>bcc_126518|Cycle_4744|Type_0a|upper_path_length_83
+AAAAAAGCAGTTCCTATCATAACATGTAATCCATGAAAACCTGTTCCAAAATAGAAACATGATGAATATGTTCCATCTGAAAT
+```
+
+```{r, eval=F}
+# head $kissplice_res_new/*type_0a.fa
+>bcc_9953|Cycle_14|Type_0a|upper_path_length_83|C1_0|C2_0|C3_0|C4_0|C5_1|C6_1|C7_1|C8_3|C9_0|C10_3|C11_1|C12_0|C13_1|C14_0|C15_0|C16_0|C17_0|C18_1|C19_0|C20_0|C21_0|C22_0|C23_0|C24_0|C25_0|C26_2|C27_0|C28_0|C29_0|C30_0|C31_0|C32_0|C33_0|C34_0|C35_0|C36_0|C37_0|C38_0|C39_0|C40_0|C41_0|C42_0|C43_0|C44_0|C45_0|C46_0|C47_0|C48_0|C49_0|C50_0|C51_0|C52_0|C53_0|C54_0|C55_0|C56_0|C57_0|C58_0|C59_0|C60_0|C61_0|C62_0|C63_0|C64_0|C65_0|C66_0|C67_0|C68_0|C69_0|C70_0|C71_0|C72_0|C73_0|C74_0|Q1_0|Q2_0|Q3_0|Q4_0|Q5_73|Q6_71|Q7_73|Q8_73|Q9_0|Q10_73|Q11_71|Q12_0|Q13_73|Q14_0|Q15_0|Q16_0|Q17_0|Q18_73|Q19_0|Q20_0|Q21_0|Q22_0|Q23_0|Q24_0|Q25_0|Q26_73|Q27_0|Q28_0|Q29_0|Q30_0|Q31_0|Q32_0|Q33_0|Q34_0|Q35_0|Q36_0|Q37_0|Q38_0|Q39_0|Q40_0|Q41_0|Q42_0|Q43_0|Q44_0|Q45_0|Q46_0|Q47_0|Q48_0|Q49_0|Q50_0|Q51_0|Q52_0|Q53_0|Q54_0|Q55_0|Q56_0|Q57_0|Q58_0|Q59_0|Q60_0|Q61_0|Q62_0|Q63_0|Q64_0|Q65_0|Q66_0|Q67_0|Q68_0|Q69_0|Q70_0|Q71_0|Q72_0|Q73_0|Q74_0|rank_1.00000
+GACAGATCCGACTGACTTATTTGATGATTGATTGGAGAATCGAAGTGGTCTTTGCTTTGGAAAATTCGATTTTATGTTGGATA
+```
+
+## Kissplice result old and new:
+
+```{bash, eval=F}
+tabebuia-ssh
+blat_fold=/media/toshiba/AREA/symphonia.trinity500.kissplice
+blat_res_old=$kissplice_fold/blat.symphonia.trinity500
+blat_res_new=$kissplice_fold/blat.symphonia.trinity500.new
+head $blat_res_old/*type0a.psl
+head $blat_res_new/*type0a.psl
+```
+
+```{r, eval=F}
+# head $blat_res_old/*type0a.psl
+75	8	0	0	0	0	0	0	-	bcc_126518|Cycle_4744|Type_0a|upper_path_length_83	83	0	83	TRINITY_DN798856_c11_g2_i1	663	226	309	1	83,	0,	226,
+```
+
+```{r, eval=F}
+# head $blat_res_new/*type0a.psl
+82	1	0	0	0	0	0	0	+	bcc_9953|Cycle_14|Type_0a|upper_path_length_83|C1_0|C2_0|C3_0|C4_0|C5_1|C6_1|C7_1|C8_3|C9_0|C10_3|C11_1|C12_0|C13_1|C14_0|C15_0|C16_0|C17_0|C18_1|C19_0|C20_0|C21_0|C22_0|C23_0|C24_0|C25_0|C26_2|C27_0|C28_0|C29_0|C30_0|C31_0|C32_0|C33_0|C34_0|C35_0|C36_0|C37_0|C38_0|C39_0|C40_0|C41_0|C42_0|C43_0|C44_0|C45_0|C46_0|C47_0|C48_0|C49_0|C50_0|C51_0|C52_0|C53_0|C54_0|C55_0|C56_0|C57_0|C58_0|C59_0|C60_0|C61_0|C62_0|C63_0|C64_0|C65_0|C66_0|C67_0|C68_0|C69_0|C70_0|C71_0|C72_0|C73_0|C74_0|Q1_0|Q2_0|Q3_0|Q4_0|Q5_73|Q6_	83	0	83	TRINITY_DN765241_c0_g4_i2	765	365	448	1	83,	0,	365,
+```
+
+## Conclusion
+
+**It seems `blat` does not accept excessively long SNP key !**
+
+```{r}
+SNP_key = "bcc_9953|Cycle_14|Type_0a|upper_path_length_83|C1_0|C2_0|C3_0|C4_0|C5_1|C6_1|C7_1|C8_3|C9_0|C10_3|C11_1|C12_0|C13_1|C14_0|C15_0|C16_0|C17_0|C18_1|C19_0|C20_0|C21_0|C22_0|C23_0|C24_0|C25_0|C26_2|C27_0|C28_0|C29_0|C30_0|C31_0|C32_0|C33_0|C34_0|C35_0|C36_0|C37_0|C38_0|C39_0|C40_0|C41_0|C42_0|C43_0|C44_0|C45_0|C46_0|C47_0|C48_0|C49_0|C50_0|C51_0|C52_0|C53_0|C54_0|C55_0|C56_0|C57_0|C58_0|C59_0|C60_0|C61_0|C62_0|C63_0|C64_0|C65_0|C66_0|C67_0|C68_0|C69_0|C70_0|C71_0|C72_0|C73_0|C74_0|Q1_0|Q2_0|Q3_0|Q4_0|Q5_73|Q6_71|Q7_73|Q8_73|Q9_0|Q10_73|Q11_71|Q12_0|Q13_73|Q14_0|Q15_0|Q16_0|Q17_0|Q18_73|Q19_0|Q20_0|Q21_0|Q22_0|Q23_0|Q24_0|Q25_0|Q26_73|Q27_0|Q28_0|Q29_0|Q30_0|Q31_0|Q32_0|Q33_0|Q34_0|Q35_0|Q36_0|Q37_0|Q38_0|Q39_0|Q40_0|Q41_0|Q42_0|Q43_0|Q44_0|Q45_0|Q46_0|Q47_0|Q48_0|Q49_0|Q50_0|Q51_0|Q52_0|Q53_0|Q54_0|Q55_0|Q56_0|Q57_0|Q58_0|Q59_0|Q60_0|Q61_0|Q62_0|Q63_0|Q64_0|Q65_0|Q66_0|Q67_0|Q68_0|Q69_0|Q70_0|Q71_0|Q72_0|Q73_0|Q74_0|rank_1.00000"
+bad_SNP_key = "bcc_9953|Cycle_14|Type_0a|upper_path_length_83|C1_0|C2_0|C3_0|C4_0|C5_1|C6_1|C7_1|C8_3|C9_0|C10_3|C11_1|C12_0|C13_1|C14_0|C15_0|C16_0|C17_0|C18_1|C19_0|C20_0|C21_0|C22_0|C23_0|C24_0|C25_0|C26_2|C27_0|C28_0|C29_0|C30_0|C31_0|C32_0|C33_0|C34_0|C35_0|C36_0|C37_0|C38_0|C39_0|C40_0|C41_0|C42_0|C43_0|C44_0|C45_0|C46_0|C47_0|C48_0|C49_0|C50_0|C51_0|C52_0|C53_0|C54_0|C55_0|C56_0|C57_0|C58_0|C59_0|C60_0|C61_0|C62_0|C63_0|C64_0|C65_0|C66_0|C67_0|C68_0|C69_0|C70_0|C71_0|C72_0|C73_0|C74_0|Q1_0|Q2_0|Q3_0|Q4_0|Q5_73|Q6_"
+length(strsplit(SNP_key, "")[[1]])
+length(strsplit(bad_SNP_key, "")[[1]])
+```
+
+# Solution ?
+
+1. Search the `blat` issue on the web 
+1. Find the origin of the long SNP keys in `kissplice`
+1. Code a function to correct the names in the `blat` psl file with those from the `kissplice` fa file
+1. _Hack_ `kissplice2reftranscriptome` code to be more permissive (accept the SNP code match only with the first informations, see snpKey in the `createBlatDictionary` function)

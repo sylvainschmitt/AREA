@@ -10,8 +10,8 @@ output:
   bookdown::pdf_document2:
     number_sections: false
     toc: false
-csl: /home/sylvain/Documents/Bibliography/csl/mee.csl
-bibliography: /home/sylvain/Documents/Bibliography/library.bib
+# csl: /home/sylvain/Documents/Bibliography/csl/mee.csl
+# bibliography: /home/sylvain/Documents/Bibliography/library.bib
 link-citations: yes
 ---
 
@@ -20,11 +20,12 @@ rm(list = ls()); invisible(gc())
 library(knitr)
 library(tidyverse)
 library(kissDE)
-opts_chunk$set(echo = T, eval = F,
+opts_chunk$set(echo = T, eval = T,
                message = F, warning = F, 
-               fig.height = 8, fig.width = 8,
+               fig.height = 4, fig.width = 8,
                cache = T, cache.lazy = F)
 path <- "~/Documents/BIOGECO/AREA/data/symphonia.trinity500.kissDE"
+save_path <- "/media/toshiba/AREA/symphonia.trinity500.kissplice/kissDE.symphonia.trinity500/"
 ```
 
 # Introduction
@@ -55,7 +56,7 @@ analyse_DEV <- function(
                                conditions, 
                                filterLowCountsVariants = filterLowCountsVariants,
                                pvalue = pvalue)
-  return(DEV$finalTable)
+  return(DEV)
 }
 ```
 
@@ -63,76 +64,46 @@ analyse_DEV <- function(
 # Single SNPs 
 
 ```{r sSNPs}
-sSNPs <- analyse_DEV("0a", conditions)
-save(sSNPs, "./conditions-specific_cache/sSNPs.Rdata")
-load("./conditions-specific_cache/sSNPs.Rdata")
-ggplot(sSNPs, aes(Adjusted_pvalue,
-                 fill = Adjusted_pvalue < 0.05)) +
-  geom_histogram()
-sSNPs %>% 
-  filter(Adjusted_pvalue < 0.05) %>% 
-  select(ID) %>% 
-  DT::datatable()
+# sSNPs <- analyse_DEV("0a", conditions)
+# save(sSNPs, file = "./conditions-specific_save/sSNPs.Rdata")
+load("./conditions-specific_save/sSNPs.Rdata")
+writeOutputKissDE(sSNPs, file.path(save_path, "kissDE_output_type0a.tsv"))
 ```
 
 # Multi SNPs
 
 ```{r mSNPs}
-mSNPs <- analyse_DEV("0b", conditions)
-save(mSNPs, "./conditions-specific_cache/mSNPs.Rdata")
-load("./conditions-specific_cache/mSNPs.Rdata")
-ggplot(mSNPs, aes(Adjusted_pvalue,
-                 fill = Adjusted_pvalue < 0.05)) +
-  geom_histogram()
-mSNPs %>% 
-  filter(Adjusted_pvalue < 0.05) %>% 
-  select(ID) %>% 
-  DT::datatable()
+# mSNPs <- analyse_DEV("0b", conditions)
+# save(mSNPs, file = "./conditions-specific_save/mSNPs.Rdata")
+load("./conditions-specific_save/mSNPs.Rdata")
+writeOutputKissDE(mSNPs, file.path(save_path, "kissDE_output_type0b.tsv"))
 ```
 
 # Alternative splicing events
 
 ```{r altsplic}
-altsplic <- analyse_DEV("1", conditions)
-save(altsplic, "./conditions-specific_cache/altsplic.Rdata")
-load("./conditions-specific_cache/altsplic.Rdata")
-ggplot(altsplic, aes(Adjusted_pvalue,
-                 fill = Adjusted_pvalue < 0.05)) +
-  geom_histogram()
-altsplic %>% 
-  filter(Adjusted_pvalue < 0.05) %>% 
-  select(ID) %>% 
-  DT::datatable()
+# altsplic <- analyse_DEV("1", conditions)
+# save(altsplic, file = "./conditions-specific_save/altsplic.Rdata")
+load("./conditions-specific_save/altsplic.Rdata")
+writeOutputKissDE(altsplic, file.path(save_path, "kissDE_output_type1.tsv"))
 ```
 
 # Inexact tandem repeats
 
 ```{r msat}
-msat <- analyse_DEV("2", conditions)
-save(msat, "./conditions-specific_cache/msat.Rdata")
-load("./conditions-specific_cache/msat.Rdata")
-ggplot(msat, aes(Adjusted_pvalue,
-                 fill = Adjusted_pvalue < 0.05)) +
-  geom_histogram()
-msat %>% 
-  filter(Adjusted_pvalue < 0.05) %>% 
-  select(ID) %>% 
-  DT::datatable()
+# msat <- analyse_DEV("2", conditions)
+# save(msat, file = "./conditions-specific_save/msat.Rdata")
+load("./conditions-specific_save/msat.Rdata")
+writeOutputKissDE(msat, file.path(save_path, "kissDE_output_type2.tsv"))
 ```
 
 # short Indels
 
 ```{r sIndels}
-sIndels <- analyse_DEV("3", conditions)
-save(sIndels, "./conditions-specific_cache/sIndels.Rdata")
-load("./conditions-specific_cache/sIndels.Rdata")
-ggplot(sIndels, aes(Adjusted_pvalue,
-                 fill = Adjusted_pvalue < 0.05)) +
-  geom_histogram()
-sIndels %>% 
-  filter(Adjusted_pvalue < 0.05) %>% 
-  select(ID) %>% 
-  DT::datatable()
+# sIndels <- analyse_DEV("3", conditions)
+# save(sIndels, file = "./conditions-specific_save/sIndels.Rdata")
+load("./conditions-specific_save/sIndels.Rdata")
+writeOutputKissDE(sIndels, file.path(save_path, "kissDE_output_type3.tsv"))
 ```
 
 # All others
@@ -140,16 +111,24 @@ sIndels %>%
 All others, with a shorter path > 2k not being a SNP
 
 ```{r others}
-others <- analyse_DEV("4", conditions)
-save(others, "./conditions-specific_cache/others.Rdata")
-load("./conditions-specific_cache/others.Rdata")
-ggplot(others, aes(Adjusted_pvalue,
-                 fill = Adjusted_pvalue < 0.05)) +
-  geom_histogram()
-others %>% 
-  filter(Adjusted_pvalue < 0.05) %>% 
-  select(ID) %>% 
-  DT::datatable()
+# others <- analyse_DEV("4", conditions)
+# save(others, file = "./conditions-specific_save/others.Rdata")
+load("./conditions-specific_save/others.Rdata")
+writeOutputKissDE(others, file.path(save_path, "kissDE_output_type4.tsv"))
+```
+
+# Summary
+
+```{r summary}
+unlist(lapply(list("Single SNPs" = sSNPs, 
+            "Multiple SNPs" = mSNPs, 
+            "Alternative splicing events" = altsplic, 
+            "Inexact tandem repeats" = msat,
+            "short Indels" = sIndels,
+            "Others" = others), 
+       function(x) dim(x)[1])) %>%
+  data.frame() %>% 
+  kable()
 ```
 
 # References
