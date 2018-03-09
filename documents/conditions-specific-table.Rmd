@@ -5,7 +5,6 @@ date: '`r Sys.Date()`'
 output:
   bookdown::html_document2:
     number_sections: false
-  bookdown::word_document2: default
   bookdown::pdf_document2:
     number_sections: false
     toc: false

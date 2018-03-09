@@ -2,6 +2,7 @@ data/
 .R*
 .Rproj.user
 *.html
+*.docx
 scripts/kissDE_trinity500_37lib_analysis*
 *_cache
 *_save
@@ -12,3 +13,4 @@ scripts/kissDE_trinity500_37lib_analysis*
 *.fa
 *.bed
 *.tsv
+*_files
