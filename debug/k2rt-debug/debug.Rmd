@@ -469,3 +469,15 @@ length(strsplit(bad_SNP_key, "")[[1]])
 1. Find the origin of the long SNP keys in `kissplice`
 1. Code a function to correct the names in the `blat` psl file with those from the `kissplice` fa file
 1. _Hack_ `kissplice2reftranscriptome` code to be more permissive (accept the SNP code match only with the first informations, see snpKey in the `createBlatDictionary` function)
+
+## `kissplice2reftranscriptome` _hack_ & Correction function
+
+`kissplice2reftranscriptome` is currently using the full SNP key (see break in code section). But the first 4 elements might be enough to match the SNP between `blat` and `kissplice`:
+
+```{bash}
+SNPkey=bcc_97365\|Cycle_0\|Type_0a\|lower_path_Length_83
+grep $SNPkey all_symphonia_juvs_type0a.psl
+grep $SNPkey results_coherent_type_0a.fa
+```
+
+So we could modify and recompile `python` code of `kissplice2reftranscriptome` to do the match with this SNP key in `isRowWithoutKisspliceConnection` function. similarly we could use this SNP key to write our own program to correct SNP keys in the `blat` file.

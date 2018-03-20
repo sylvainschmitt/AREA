@@ -1,3 +1,8 @@
+# AREA 0.1.9004
+* k2rt debug solution
+* blatFix python software for the solution
+* **Further analysis on k2rt results are moved to PhD>Symphonia>probes repository**
+
 # AREA 0.1.9003
 * k2rt debug
 * conditions-specific-variants tables and graphs
